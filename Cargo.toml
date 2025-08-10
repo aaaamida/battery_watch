@@ -4,3 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+anyhow = "1.0.98"
+notify = "8.2.0"
+notify-rust = "4.11.7"
+tokio = "1.47.1"
