@@ -22,33 +22,8 @@ fn battery_level(percent: u8) -> BatteryLevel {
         }
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-        let (tx, rx) = std::sync::mpsc::channel();
-
-        let config = Config::default()
-                .with_poll_interval(Duration::from_millis(500))
-                .with_compare_contents(true);
-
-        let mut watcher = PollWatcher::new(
-                move |event| {
-                        if let Err(e) = tx.send(event) {
-                                eprintln!("Error: Failed to send event: {}", e)
-                        }
-                }, config)?;
-
-        let cap = Path::new("/sys/class/power_supply/BAT0/capacity");
-        watcher.watch(cap, notify::RecursiveMode::NonRecursive)?;
-
-        for event in rx {
-                battery_watch(event);
-        }
-
-        Ok(())
-}
-
 fn battery_watch(event: Result<Event, notify::Error>) {
-        let cap = std::fs::read_to_string("/sys/class/power_supply/BAT0/capacity")
-                .expect("Error: Cannot read file");
+        let cap = std::fs::read_to_string("/sys/class/power_supply/BAT0/capacity").unwrap();
         let cap = cap.trim().parse::<u8>().unwrap();
         let level = battery_level(cap);
 
@@ -89,11 +64,9 @@ fn battery_watch(event: Result<Event, notify::Error>) {
                                         .urgency(urgency)
                                         .timeout(timeout)
                                         .show()
-                                        .expect("Error: Unable to send notification");
+                                        .unwrap();
 
-                                unsafe {
-                                        LAST_NOTIF_LEVEL = Some(level);
-                                }
+                                unsafe { LAST_NOTIF_LEVEL = Some(level); }
 
                                 if matches!(level, BatteryLevel::Critical) {
                                         std::thread::spawn(|| {
@@ -106,3 +79,24 @@ fn battery_watch(event: Result<Event, notify::Error>) {
                 Err(err) => eprintln!("Watch error: {}", err)
         }
 }
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+        let (tx, rx) = std::sync::mpsc::channel();
+
+        let config = Config::default()
+                .with_poll_interval(Duration::from_millis(500))
+                .with_compare_contents(true);
+
+        let mut watcher = PollWatcher::new(move |event| tx.send(event).unwrap(), config)?;
+
+        let cap = Path::new("/sys/class/power_supply/BAT0/capacity");
+        watcher.watch(cap, notify::RecursiveMode::NonRecursive)?;
+
+        for event in rx {
+                battery_watch(event);
+        }
+
+        Ok(())
+}
+
+
