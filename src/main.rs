@@ -73,7 +73,7 @@ fn battery_watch(event: Result<Event, notify::Error>, battery_status: &mut Batte
                                                 "High Battery Charge",
                                                 "Unplug your computer from power source to prevent the device from overheating",
                                                 Urgency::Low,
-                                                Timeout::Milliseconds(60_000),
+                                                Timeout::Milliseconds(10_000),
                                         ),
                                         BatteryLevel::Low => (
                                                 "Battery Low",
@@ -88,7 +88,7 @@ fn battery_watch(event: Result<Event, notify::Error>, battery_status: &mut Batte
                                                 Timeout::Milliseconds(600_000) // 10mins
                                         ),
                                         _  => (
-                                                "Battery Critical", 
+                                                "Battery Critical",
                                                 "Shutting down in 60 seconds. Press Meta+Ctrl+Shift+A to abort.",
                                                 Urgency::Critical,
                                                 Timeout::Milliseconds(60_000) // 1min
@@ -103,8 +103,12 @@ fn battery_watch(event: Result<Event, notify::Error>, battery_status: &mut Batte
                                         .show()
                                         .unwrap();
 
-                                battery_status.last_notif_level = Some(level);
+                                match last_notify {
+                                        Some(BatteryLevel::High) => battery_status.last_notif_level = None,
+                                        _ => battery_status.last_notif_level = Some(level),
+                                }
 
+                                // FIX: this probably doesnt work w dunst
                                 if !plugged_in && matches!(level, BatteryLevel::High) {
                                         notification.close();
                                 }
